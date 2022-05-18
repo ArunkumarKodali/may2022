@@ -1,0 +1,102 @@
+Spark Cluster Configration:-
+---------------------------
+
+Num-Executors 
+Executor-core
+executor-memory
+
+1. Leave one core for OS to run
+2. HDFS Throughput ( 5 tasks per executor to minimize GC overhead)
+3. Yarn ApplicationMaster (1 GB mem per 1 executor)
+4. Memory OverHead:
+        Full Memory requested to yarn per executor   =
+		   spark-executor-memory + spark.yarn.executor.memoryOverhead.
+		spark.yarn.executor.memoryOverhead = Max(384 MB, 7% of spark.executor-memory)
+    Note:-
+	---------
+	  If we request 20 GB per executor, AM will get 20 GB + memoryOverhead = 20 + 7% of @20 GB = 23 GB Memory
+	  
+Executor tuning:-
+-----------------
+ Num-Executors = 1 executor per core 
+ total-cores-in-cluster = Num-cores-per-node * total-nodes-in-cluster
+  
+ executor-cores = 1 (one executor per core)
+ 
+ executor-memory = Total Memory in Cluster / Total Executors
+ 
+  Ex:- 
+  
+    10 Nodes in cluster
+	42 Cores per Node   (Total Nodes in cluster = 10 * 32 = 320 cores
+	256 GB RAM per Node  (Total Memory in Clustor = 10 * 232 = 2320 GB (2.3 TB))
+	
+	 total-cores-in-cluster = 10 * 32 = 320
+	 executor-cores = 1 (one executor per core)
+	 executor-memory = 2320 /320 = 7.2 GB 
+	 
+	 
+ Balance between Fat (Vs) Tiny 
+ ------------------------------
+ 
+ assign 5 cores per executor
+  
+  executor-cores =5 (for Good HDFS throughput) Leve 8 core per node for Hadoop/yarn Demon/ OS 
+  
+  Num cores avilable per node = 40 - 8 = 32 
+  
+  so tatal avilable cores in a cluster = 32 * 10 = 320
+  
+  Number of avilable executors = (total cores / num-cores-per-executor) = 320 / 5 = 64
+  
+  leaving 1 executor per Application Master = num-executors= 63
+  
+  number of executors per node = 64 / 10 = 6
+  
+  Memory per Executor = 2080 / 10 = 208 GB = 208 / 6 = 34.6 GB   (80 % cores and 90 memory allocated to Yarn on slave nodes)
+  
+  Counting off Heap overhead = 7% of 34.6 GB = 2.5 GB so actual 
+  
+  Executor-memory = 34.6 - 2.5 = 32.1 GB 
+  
+  Result : 63 Executors, 32.1 GB memory per each and 5 cores each 
+  
+  
+  
+  
+  Performance tuning :-
+  -------------------
+  
+  1. CPU utilization
+  2. Network data shfuling, 
+  3. Memory Utlization :- job may hault due to not enaugh memory 
+  
+  ---------------------
+  1. Data Setialization 
+         -- Kyro Serialization is recomanded 10 times fates than java (by default java serelizer it is very slow and leads to large and many clases)
+		    spark.kyroserialization = 64 MB 
+			
+  2. Memory tuning
+         -- amount of mem used by your object (prefer to set entire dataset to fit in memory)
+		 -- cost of accessing objects
+		 -- overhead of grabage collection 
+		 
+  3. Tuning Data Structures
+         -- avoid using HashMap , linked list use arry of objects and primitive types
+  4. Serialized RDD storage
+         -- Kyro serilizer,
+		 -- MEMORY-ONLY_SER
+  5. Garbage Collection Tuning
+         -- G1GC is recomended 
+  6. Level of parallelism
+          -- increase the level of parallelism so that each tas's input set is small OOM
+		  -- spark.default.parallelism 
+		  -- recommended 2 - 3 smaller tasks per CPU core in your cluster
+  7. Broadcast large Variables
+          -- to over come network overhead
+  8  Data Locality
+          -- cde and data located in the same node will be much faster 
+  
+  
+  
+  
